@@ -4,6 +4,9 @@ using Prologue.Data;
 using System;
 using System.Collections.Generic;
 using Prologue.Data.Models;
+using Prologue.Data.Services;
+using System.Linq;
+using Prologue.Data.ViewModels;
 
 namespace Prologue_tests
 {
@@ -13,6 +16,7 @@ namespace Prologue_tests
             .UseInMemoryDatabase(databaseName: "PrologueDbTest")
             .Options;
         AppDbContext context;
+        PublishersService publishersService; 
 
         [OneTimeSetUp]
         public void Setup()
@@ -21,7 +25,91 @@ namespace Prologue_tests
             context.Database.EnsureCreated();
 
             SeedDatabase();
+
+            publishersService = new PublishersService(context);
         }
+
+        [Test, Order(1)]
+        public void GetAllPublishers_WithNoSortBy_WithNoSearchString_WithNoPageNumber_Test()
+        {
+            var result = publishersService.GetAllPublishers("", "", null);
+
+            Assert.That(result.Count, Is.EqualTo(5));
+            Assert.AreEqual(result.Count, 5);
+        }
+
+        [Test, Order(2)]
+        public void GetAllPublishers_WithNoSortBy_WithNoSearchString_WithPageNumber_Test()
+        {
+            var result = publishersService.GetAllPublishers("", "", 2);
+
+            Assert.That(result.Count, Is.EqualTo(1));
+        }
+
+        [Test, Order(3)]
+        public void GetAllPublishers_WithNoSortBy_WithSearchString_WithNoPageNumber_Test()
+        {
+            var result = publishersService.GetAllPublishers("", "3", null);
+
+            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result.FirstOrDefault().Name, Is.EqualTo("Publisher 3"));
+        }
+
+        [Test, Order(4)]
+        public void GetAllPublishers_WithSortBy_WithNoSearchString_WithNoPageNumber_Test()
+        {
+            var result = publishersService.GetAllPublishers("name_desc", "", null);
+
+            Assert.That(result.Count, Is.EqualTo(5));
+            Assert.That(result.FirstOrDefault().Name, Is.EqualTo("Publisher 6"));
+        }
+
+        [Test, Order(5)]
+        public void GetPublisherById_WithResponce_Test()
+        {
+            var result = publishersService.GetPublisherById(4);
+
+            Assert.That(result.Id, Is.EqualTo(4));
+            Assert.That(result.Name, Is.EqualTo("Publisher 4"));
+        }
+
+        [Test, Order(6)]
+        public void GetPublisherById_WithoutResponce_Test()
+        {
+            var result = publishersService.GetPublisherById(44);
+
+            Assert.That(result, Is.Null);
+        }
+
+        [Test, Order(7)]
+        public void AddPublisher_Test()
+        {
+            var newPublisher = new PublisherViewModel()
+            {
+                Name = "Publisher New"
+            };
+            publishersService.AddPublisher(newPublisher);
+
+            var result = publishersService.GetAllPublishers("", "New", null);
+
+            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result.FirstOrDefault().Name, Is.EqualTo("Publisher New"));
+            Assert.That(result.FirstOrDefault().Id, Is.Not.Null);
+        }
+
+        [Test, Order(8)]
+        public void GetPublisherData_Test()
+        {
+            var result = publishersService.GetPublisherData(1);
+
+            Assert.That(result.Name, Is.EqualTo("Publisher 1"));
+            Assert.That(result.BookAuthors, Is.Not.Empty);
+            Assert.That(result.BookAuthors.Count, Is.GreaterThan(0));
+
+            var firstBookName = result.BookAuthors.OrderBy(n => n.BookName).FirstOrDefault().BookName;
+            Assert.That(firstBookName, Is.EqualTo("Book 1 Title"));
+        }
+
 
         [OneTimeTearDown]
         public void ClearUp()
